@@ -194,7 +194,8 @@ contract ILPController is RDDNControl, IILPController {
     /// @return symbol the symbol of the money object
     /// @return owner the owner of the money object
     /// @return totalSupply the total supply of the money object
-    function getMoney(uint256 _moneyId) external view returns(
+    function getMoney(uint256 _moneyId) external view returns (
+        uint256 moneyId,
         address contractAddress,
         string name,
         string symbol,

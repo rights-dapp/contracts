@@ -82,7 +82,8 @@ contract IILPController {
         int8 result
     );
 
-    function getMoney(uint256 _moneyId) external view returns(
+    function getMoney(uint256 _moneyId) external view returns (
+        uint256 moneyId,
         address contractAddress,
         string name,
         string symbol,

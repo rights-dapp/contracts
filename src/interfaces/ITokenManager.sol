@@ -67,6 +67,7 @@ contract ITokenManager {
     function decimalsOf(uint256 _tokenId) public view returns (uint8);
 
     function getTokenInfo(uint256 _tokenId) public view returns(
+        uint256 tokenId,
         address contractAddress,
         string name,
         string symbol,

@@ -243,13 +243,16 @@ contract TokenManager is RDDNControl, ITokenManager, MinterRole, ManagerRole {
     }
 
     /// @dev Gets the token object of the specified token ID
-    /// @param _tokenId the tokenId of the token object
-    /// @return tokenId the tokenId of the token object
-    /// @return name the name of the token object
-    /// @return symbol the symbol of the token object
-    /// @return owner the owner of the token object
-    /// @return totalSupply the total supply of the token object
+    /// @param _tokenId the tokenId of the token
+    /// @return tokenId the tokenId of the token
+    /// @return contractAddress the contractAddress of the token
+    /// @return name the name of the token
+    /// @return symbol the symbol of the token
+    /// @return owner the owner of the token
+    /// @return totalSupply the total supply of the token
+    /// @return decimals the decimals of the token
     function getTokenInfo(uint256 _tokenId) public view returns(
+        uint256 tokenId,
         address contractAddress,
         string name,
         string symbol,
@@ -261,6 +264,7 @@ contract TokenManager is RDDNControl, ITokenManager, MinterRole, ManagerRole {
         RightsBaseToken token = RightsBaseToken(contracts[_tokenId]);
 
         return (
+            _tokenId,
             contracts[_tokenId],
             token.name(),
             token.symbol(),
