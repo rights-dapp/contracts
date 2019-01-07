@@ -15,6 +15,7 @@ contract IRDDNMarketSales {
         uint256 marketId,
         uint256 objectId,
         uint256 moneyId,
+        uint256 moneyValue,
         uint256 pointId,
         uint256 pointValue
     );

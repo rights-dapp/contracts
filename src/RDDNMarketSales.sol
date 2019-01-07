@@ -231,7 +231,16 @@ contract RDDNMarketSales is IRDDNMarketSales, RDDNControl, FeeModule {
             basePointId
         );
 
-        emit Purchase(msg.sender, _marketId, _specId, _moneyId, _pointId, _pointValue);
+        emit Purchase(
+            msg.sender,
+            _marketId,
+            _specId,
+            _moneyId,
+            feeMoneyValue + afterFeeMoneyValue,
+            _pointId,
+            _pointValue
+        );
+
         return true;
     }
 

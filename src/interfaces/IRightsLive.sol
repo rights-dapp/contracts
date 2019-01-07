@@ -40,14 +40,14 @@ contract IRightsLive {
     );
 
     event PayEntranceFee(
-        address customer,
+        address from,
         uint256 liveRoomId,
         uint256 moneyId,
         uint256 entranceFee
     );
 
     event EnterLiveRoom(
-        address customer,
+        address from,
         uint256 liveRoomId,
         uint64 liveEndAt
     );
