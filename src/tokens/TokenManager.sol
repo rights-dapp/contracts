@@ -4,7 +4,7 @@ import "./../tokens/RightsBaseToken.sol";
 import "./../utils/RDDNControl.sol";
 import "./../utils/ManagerRole.sol";
 import "./../interfaces/ITokenManager.sol";
-import "./../utils/AddressLinkedList.sol";
+import "./../utils/OwnerLinkedIdList.sol";
 
 import "openzeppelin-solidity/math/SafeMath.sol";
 import "openzeppelin-solidity/utils/Address.sol";
@@ -30,13 +30,13 @@ contract TokenManager is RDDNControl, ITokenManager, MinterRole, ManagerRole {
     mapping(address => uint256[]) internal ownedTokenIds;
 
     // Mapping from holder to token Ids
-    AddressLinkedList private heldTokenIdList;
+    OwnerLinkedIdList private heldTokenIdList;
 
 
     /*** CONSTRUCTOR ***/
 
     constructor() public {
-        heldTokenIdList = new AddressLinkedList();
+        heldTokenIdList = new OwnerLinkedIdList();
     }
 
     /*** EXTERNAL FUNCTIONS ***/
@@ -49,21 +49,13 @@ contract TokenManager is RDDNControl, ITokenManager, MinterRole, ManagerRole {
     ) whenNotPaused public returns (bool) {
         require(!_exists(_contractAddress));
 
-        RightsBaseToken token = RightsBaseToken(_contractAddress);
         uint256 tokenId = contracts.push(_contractAddress).sub(1);
-
         contractToTokenId[_contractAddress] = tokenId;
         contractIssues[_contractAddress] = true;
 
         _addTokenTo(msg.sender, tokenId);
 
-        emit Issue(
-            msg.sender,
-            token.name(),
-            token.symbol(),
-            token.totalSupply(),
-            tokenId
-        );
+        emit Issue(msg.sender, tokenId);
 
         return true;
     }
@@ -159,13 +151,7 @@ contract TokenManager is RDDNControl, ITokenManager, MinterRole, ManagerRole {
         RightsBaseToken token = RightsBaseToken(contracts[_tokenId]);
         token.update(_name, _symbol);
 
-        emit Update(
-            msg.sender,
-            _tokenId,
-            token.name(),
-            token.symbol(),
-            token.totalSupply()
-        );
+        emit Update(msg.sender, _tokenId);
     }
 
     /// @dev Gets contract count.

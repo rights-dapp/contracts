@@ -53,16 +53,7 @@ contract RightsDigitalAssetSpec is IRightsDigitalAssetSpec, MasterDataModule {
         uint256 specId = digitalAssetSpecs.push(digitalAsset).sub(1);
         _mint(msg.sender, specId);
 
-        emit Define(
-            msg.sender,
-            specId,
-            digitalAsset.name,
-            digitalAsset.symbol,
-            digitalAsset.assetType,
-            digitalAsset.mediaId,
-            digitalAsset.totalSupplyLimit,
-            digitalAsset.referenceValue
-        );
+        emit Define(msg.sender, specId);
     }
 
     /// @dev Get DigitalAssetSpec info.

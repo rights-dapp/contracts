@@ -1,6 +1,6 @@
 pragma solidity ^0.4.24;
 
-import "./../utils/LinkedList.sol";
+import "./../utils/LinkedIdList.sol";
 import "openzeppelin-solidity/math/SafeMath.sol";
 
 contract MultiTokenModule {
@@ -42,12 +42,12 @@ contract MultiTokenModule {
     uint8 private _rateDecimals;
 
     // Mapping from keyId to token Ids
-    LinkedList private tokenIdList;
+    LinkedIdList private tokenIdList;
 
 
     constructor() public {
         _rateDecimals = 4;
-        tokenIdList = new LinkedList();
+        tokenIdList = new LinkedIdList();
     }
 
 

@@ -1,22 +1,21 @@
 pragma solidity ^0.4.24;
 
-import "./DigitalMoneyManager.sol";
-
 import './interfaces/IRightsLiveRoom.sol';
 import "./modules/MasterDataModule.sol";
-import "./modules/MultiTokenModule.sol";
+import "./utils/LinkedAddressList.sol";
 
 import "openzeppelin-solidity/math/SafeMath.sol";
 
 /// @title RightsLiveRoom
 /// @dev ERC721 based master data of live rooms.
-contract RightsLiveRoom is IRightsLiveRoom, MasterDataModule, MultiTokenModule {
+contract RightsLiveRoom is IRightsLiveRoom, MasterDataModule {
 
     using SafeMath for uint;
 
     struct LiveRoom {
         string name;
         uint256 liveRoomType;
+        address holder;
         string mediaId;
         string description;
         uint256 entranceFee;
@@ -29,28 +28,22 @@ contract RightsLiveRoom is IRightsLiveRoom, MasterDataModule, MultiTokenModule {
 
     LiveRoom[] public liveRooms;
 
-    // Mapping address to approvals of the live room
-    mapping (uint256 => mapping (address => bool)) private liveRoomHostApprovals;
-    // Mapping from live room ID to approved addresses
-    mapping (uint256 => address[]) private liveRoomHosts;
-    // Mapping from live room ID to index of the hosts list
-    mapping (uint256 => mapping (address => uint256)) private liveRoomHostsIndex;
+    // Mapping from holder to token Ids
+    LinkedAddressList private hostList;
 
-    DigitalMoneyManager moneyManager;
 
     /*** CONSTRUCTOR ***/
 
-    constructor(address _digitalMoneyManagerAddr) public {
-        require(_digitalMoneyManagerAddr != address(0));
-        moneyManager = DigitalMoneyManager(_digitalMoneyManagerAddr);
+    constructor() public {
+        hostList = new LinkedAddressList();
     }
-
 
     /*** EXTERNAL FUNCTIONS ***/
 
     /// @dev Crete the live room
     /// @param _name  Live room name
     /// @param _liveRoomType Live room type
+    /// @param _holder live room holder address
     /// @param _mediaId media file id
     /// @param _description Live room description
     /// @param _entranceFee Live room entrance fee
@@ -59,6 +52,7 @@ contract RightsLiveRoom is IRightsLiveRoom, MasterDataModule, MultiTokenModule {
     function createLiveRoom(
         string _name,
         uint256 _liveRoomType,
+        address _holder,
         string _mediaId,
         string _description,
         uint256 _entranceFee,
@@ -69,9 +63,10 @@ contract RightsLiveRoom is IRightsLiveRoom, MasterDataModule, MultiTokenModule {
         LiveRoom memory liveRoom;
         liveRoom.name = _name;
         liveRoom.liveRoomType = _liveRoomType;
+        liveRoom.holder = _holder;
         liveRoom.mediaId = _mediaId;
         liveRoom.description = _description;
-        liveRoom.isValid = true;
+        liveRoom.isValid = _isValid;
         liveRoom.isSecret = _isSecret;
         liveRoom.entranceFee = _entranceFee;
 
@@ -79,17 +74,7 @@ contract RightsLiveRoom is IRightsLiveRoom, MasterDataModule, MultiTokenModule {
         uint256 liveRoomId = liveRooms.push(liveRoom).sub(1);
         _mint(msg.sender, liveRoomId);
 
-        emit CreateLiveRoom(
-            msg.sender,
-            liveRoomId,
-            _name,
-            _liveRoomType,
-            _mediaId,
-            _description,
-            _entranceFee,
-            _isSecret,
-            _isValid
-        );
+        emit CreateLiveRoom(msg.sender, liveRoomId);
     }
 
     /// @dev Updates the live room of the specified live room ID
@@ -122,17 +107,7 @@ contract RightsLiveRoom is IRightsLiveRoom, MasterDataModule, MultiTokenModule {
         liveRoom.entranceFee = _entranceFee;
         liveRoom.isValid = _isValid;
 
-        emit UpdateLiveRoom(
-            msg.sender,
-            _liveRoomId,
-            _name,
-            _liveRoomType,
-            _mediaId,
-            _description,
-            _entranceFee,
-            _isSecret,
-            _isValid
-        );
+        emit UpdateLiveRoom(msg.sender, _liveRoomId);
     }
 
     /// @dev Approves another address to be host of the live room
@@ -143,9 +118,7 @@ contract RightsLiveRoom is IRightsLiveRoom, MasterDataModule, MultiTokenModule {
         uint256 _liveRoomId
     ) public whenNotPaused {
         require(ownerOf(_liveRoomId) == msg.sender);
-
-        liveRoomHostApprovals[_liveRoomId][_to] = true;
-        liveRoomHostsIndex[_liveRoomId][_to] = liveRoomHosts[_liveRoomId].push(_to).sub(1);
+        hostList.add(_liveRoomId, _to);
         emit AddHost(msg.sender, _to, _liveRoomId);
     }
 
@@ -157,59 +130,8 @@ contract RightsLiveRoom is IRightsLiveRoom, MasterDataModule, MultiTokenModule {
         uint256 _liveRoomId
     ) external whenNotPaused {
         require(ownerOf(_liveRoomId) == msg.sender);
-
-        liveRoomHostApprovals[_liveRoomId][_to] = false;
-
-        uint256 hostIndex = liveRoomHostsIndex[_liveRoomId][_to];
-        uint256 lastHostIndex = liveRoomHosts[_liveRoomId].length.sub(1);
-        address lastHost = liveRoomHosts[_liveRoomId][lastHostIndex];
-
-        liveRoomHosts[_liveRoomId][hostIndex] = lastHost;
-        liveRoomHosts[_liveRoomId].length--;
-
+        hostList.remove(_liveRoomId, _to);
         emit RemoveHost(msg.sender, _to, _liveRoomId);
-    }
-
-    /// @dev Aadd a money id to the list of a given live room id
-    /// @param _liveRoomId id of the live room
-    /// @param _moneyId money id
-    /// @param _rate rate
-    function addPayableMoney(
-        uint256 _liveRoomId,
-        uint256 _moneyId,
-        uint256 _rate
-    ) external whenNotPaused {
-        require(ownerOf(_liveRoomId) == msg.sender);
-        require(moneyManager.ownerOf(_moneyId) != address(0));
-
-        _addRelatedToken(_liveRoomId, _moneyId, _rate);
-    }
-
-    /// @dev Update money info of a given live room id
-    /// @param _liveRoomId id of the live room
-    /// @param _moneyId money id
-    /// @param _rate rate
-    /// @param _isBase whether the token is base
-    function updatePayableMoney(
-        uint256 _liveRoomId,
-        uint256 _moneyId,
-        uint256 _rate,
-        bool _isBase
-    ) external whenNotPaused {
-        require(ownerOf(_liveRoomId) == msg.sender);
-        require(moneyManager.ownerOf(_moneyId) != address(0));
-
-        _updateRelatedToken(_liveRoomId, _moneyId, _rate, _isBase);
-    }
-
-    /// @dev Remove a money ID from the list of a live room id
-    /// @param _liveRoomId id of the live room
-    /// @param _moneyId money id
-    function removePayableMoney(uint256 _liveRoomId, uint256 _moneyId) external whenNotPaused {
-        require(ownerOf(_liveRoomId) == msg.sender);
-        require(moneyManager.ownerOf(_moneyId) != address(0));
-
-        _removeRelatedToken(_liveRoomId, _moneyId);
     }
 
     /// @dev Gets the live room info of the specified live room ID
@@ -219,6 +141,7 @@ contract RightsLiveRoom is IRightsLiveRoom, MasterDataModule, MultiTokenModule {
         uint256 liveRoomId,
         string name,
         uint256 liveRoomType,
+        address holder,
         string mediaId,
         string description,
         bool isValid,
@@ -235,6 +158,7 @@ contract RightsLiveRoom is IRightsLiveRoom, MasterDataModule, MultiTokenModule {
             _liveRoomId,
             liveRoom.name,
             liveRoom.liveRoomType,
+            liveRoom.holder,
             liveRoom.mediaId,
             liveRoom.description,
             liveRoom.isValid,
@@ -252,6 +176,7 @@ contract RightsLiveRoom is IRightsLiveRoom, MasterDataModule, MultiTokenModule {
         uint256 liveRoomId,
         string name,
         uint256 liveRoomType,
+        address holder,
         string mediaId,
         string description,
         bool isValid,
@@ -269,7 +194,7 @@ contract RightsLiveRoom is IRightsLiveRoom, MasterDataModule, MultiTokenModule {
     /// @return currently oved address for the given live ID
     function isHost(uint256 _liveRoomId, address _host) public view returns (bool) {
         require(_exists(_liveRoomId));
-        return liveRoomHostApprovals[_liveRoomId][_host];
+        return hostList.exists(_liveRoomId, _host);
     }
 
     /// @dev Gets the host list of live room
@@ -277,62 +202,7 @@ contract RightsLiveRoom is IRightsLiveRoom, MasterDataModule, MultiTokenModule {
     /// @return host address list
     function getHosts(uint256 _liveRoomId) public view returns (address[]) {
         require(_exists(_liveRoomId));
-        return liveRoomHosts[_liveRoomId];
-    }
-
-    /// @dev Returns money rate of the specified live room id
-    /// @param _liveRoomId id of the live room
-    /// @param _moneyId money id
-    /// @return whether the token is available
-    function moneyRateOf(uint256 _liveRoomId, uint256 _moneyId) public view returns (uint256) {
-        require(_exists(_liveRoomId));
-        require(moneyManager.ownerOf(_moneyId) != address(0));
-
-        return _rateOf(_liveRoomId, _moneyId);
-    }
-
-    /// @dev Returns whether the specified money id is payable
-    /// @param _liveRoomId id of the live room
-    /// @param _moneyId money id
-    /// @return whether the token is available
-    function isPayableMoney(uint256 _liveRoomId, uint256 _moneyId) public view returns (bool) {
-        require(_exists(_liveRoomId));
-        require(moneyManager.ownerOf(_moneyId) != address(0));
-
-        return _isRegisteredToken(_liveRoomId, _moneyId);
-    }
-
-    /// @dev Returns base money id list of the specified live room id
-    /// @param _liveRoomId id of the live room
-    /// @return money id list
-    function baseMoneyOf(uint256 _liveRoomId) public view returns (uint256) {
-        require(_exists(_liveRoomId));
-        return _baseTokenOf(_liveRoomId);
-    }
-
-    /// @dev Returns money id list of the specified live room id
-    /// @param _liveRoomId id of the live room
-    /// @return money id list
-    function payableMoneysOf(uint256 _liveRoomId) public view returns (uint256[]) {
-        require(_exists(_liveRoomId));
-        return _tokensOfKey(_liveRoomId);
-    }
-
-    /// @dev Calculate amount by exchange rate
-    /// @param _liveRoomId id of the live room
-    /// @param _moneyId id of the money
-    /// @param _amout amount
-    function exchangedAmountOf(
-        uint256 _liveRoomId,
-        uint256 _moneyId,
-        uint256 _amout
-    ) public view returns (uint256) {
-        require(_exists(_liveRoomId));
-        require(moneyManager.ownerOf(_moneyId) != address(0));
-
-         // calculate amount
-        uint256 relativeAmount = moneyManager.relativeAmountOf(_moneyId, baseMoneyOf(_liveRoomId), _amout);
-        return _exchangedAmountOf(_liveRoomId, _moneyId, relativeAmount);
+        return hostList.valuesOf(_liveRoomId);
     }
 
     /// @dev Returns live room type of the specified live room id
@@ -341,6 +211,14 @@ contract RightsLiveRoom is IRightsLiveRoom, MasterDataModule, MultiTokenModule {
     function liveRoomTypeOf(uint256 _liveRoomId) public view returns (uint256) {
         require(_exists(_liveRoomId));
         return liveRooms[_liveRoomId].liveRoomType;
+    }
+
+    /// @dev Returns live room holder of the specified live room id
+    /// @param _liveRoomId live room id
+    /// @return live room holder address of the specified live room id
+    function holderOf(uint256 _liveRoomId) public view returns (address) {
+        require(_exists(_liveRoomId));
+        return liveRooms[_liveRoomId].holder;
     }
 
     /// @dev Returns whether the live room is valid

@@ -10,8 +10,8 @@ import "./RDDNMarketPoint.sol";
 
 import "./interfaces/IRDDNMarketSales.sol";
 import "./utils/RDDNControl.sol";
-import "./utils/LinkedList.sol";
-import "./utils/DoubleLinkedList.sol";
+import "./utils/LinkedIdList.sol";
+import "./utils/DoubleLinkedIdList.sol";
 import "./modules/FeeModule.sol";
 
 import "openzeppelin-solidity/math/SafeMath.sol";
@@ -24,9 +24,9 @@ contract RDDNMarketSales is IRDDNMarketSales, RDDNControl, FeeModule {
     /*** STORAGE ***/
 
     // Mapping from marketId to specIdList
-    LinkedList private specIdList;
+    LinkedIdList private specIdList;
     // Mapping from marketId to objectIdList per spec
-    DoubleLinkedList private objectIdList;
+    DoubleLinkedIdList private objectIdList;
 
     // Mapping from object id to status whether on sale 
     mapping(uint256 => bool) private objectMarketStatus;
@@ -70,8 +70,8 @@ contract RDDNMarketSales is IRDDNMarketSales, RDDNControl, FeeModule {
         marketMoney = RDDNMarketMoney(_marketMoneyAddr);
         marketPoint = RDDNMarketPoint(_marketPointAddr);
 
-        specIdList = new LinkedList();
-        objectIdList = new DoubleLinkedList();
+        specIdList = new LinkedIdList();
+        objectIdList = new DoubleLinkedIdList();
     }
 
     

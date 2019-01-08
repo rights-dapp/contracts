@@ -13,6 +13,7 @@ contract RDDNMarket is IRDDNMarket, MasterDataModule {
     struct Market {
         string name;
         uint256 marketType;
+        address holder;
         string mediaId;
         bool isValid;
     }
@@ -28,11 +29,14 @@ contract RDDNMarket is IRDDNMarket, MasterDataModule {
 
     /// @dev Create a new market.
     /// @param _name name
+    /// @param _marketType market type
+    /// @param _holder market holder address
     /// @param _mediaId mediaId
     /// @param _isValid isValid
     function createMarket(
         string _name,
         uint256 _marketType,
+        address _holder,
         string _mediaId,
         bool _isValid
     ) external whenNotPaused returns(bool) {
@@ -40,6 +44,7 @@ contract RDDNMarket is IRDDNMarket, MasterDataModule {
 
         m.name = _name;
         m.marketType = _marketType;
+        m.holder = _holder;
         m.mediaId = _mediaId;
         m.isValid = _isValid;
 
@@ -47,7 +52,7 @@ contract RDDNMarket is IRDDNMarket, MasterDataModule {
         uint256 marketId = markets.push(m) - 1;
         _mint(msg.sender, marketId);
 
-        emit CreateMarket(msg.sender, marketId, _name, _marketType, _mediaId, _isValid);
+        emit CreateMarket(msg.sender, marketId);
         return true;
     }
 
@@ -72,7 +77,7 @@ contract RDDNMarket is IRDDNMarket, MasterDataModule {
         markets[_marketId].mediaId = _mediaId;
         markets[_marketId].isValid = _isValid;
 
-        emit UpdateMarket(msg.sender, _marketId, _name, _marketType, _mediaId, _isValid);
+        emit UpdateMarket(msg.sender, _marketId);
         return true;
     }
     
@@ -85,6 +90,7 @@ contract RDDNMarket is IRDDNMarket, MasterDataModule {
         uint256 marketId,
         string  name,
         uint256 marketType,
+        address holder,
         string mediaId,
         bool isValid,
         address owner
@@ -96,6 +102,7 @@ contract RDDNMarket is IRDDNMarket, MasterDataModule {
             _marketId,
             m.name,
             m.marketType,
+            m.holder,
             m.mediaId,
             m.isValid,
             ownerOf(_marketId)
@@ -113,12 +120,21 @@ contract RDDNMarket is IRDDNMarket, MasterDataModule {
         uint256 marketId,
         string  name,
         uint256 marketType,
+        address holder,
         string mediaId,
         bool isValid,
         address owner
     ) {
         uint256 targetId = tokenOfOwnerByIndex(_owner, _index);
         return getMarket(targetId);
+    }
+
+    /// @dev Returns market holder of the specified market id
+    /// @param _marketId market id
+    /// @return market holder address of the specified market id
+    function holderOf(uint256 _marketId) public view returns (address) {
+        require(_exists(_marketId));
+        return markets[_marketId].holder;
     }
 
     /// @dev Returns market type of the specified market id

@@ -6,13 +6,7 @@ contract IRightsDigitalAssetSpec {
 
     event Define(
         address owner,
-        uint256 specId,
-        string name,
-        string symbol,
-        uint256 assetType,
-        string mediaId,
-        uint256 totalSupplyLimit,
-        uint256 referenceValue
+        uint256 specId
     );
     
 

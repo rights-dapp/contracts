@@ -85,9 +85,7 @@ contract RightsDigitalAssetObject is IRightsDigitalAssetObject, RDDNControl, ERC
         emit Mint(
             msg.sender,
             objectId,
-            digitalAssetObject.specId,
-            digitalAssetObject.mediaId,
-            digitalAssetObject.info
+            digitalAssetObject.specId
         );
     }
 
@@ -104,11 +102,7 @@ contract RightsDigitalAssetObject is IRightsDigitalAssetObject, RDDNControl, ERC
         // set mediaId
         digitalAsset.mediaId = _mediaId;
 
-        emit SetMediaId(
-            msg.sender,
-            _objectId,
-            digitalAsset.mediaId
-        );
+        emit SetMediaId(msg.sender, _objectId, digitalAsset.mediaId);
     }
 
     /// @dev Get DigitalAsset.

@@ -50,7 +50,7 @@ contract RightsArtist is IRightsArtist, MasterDataModule {
         uint256 artistId = artists.push(artist).sub(1);
         _mint(msg.sender, artistId);
 
-        emit CreateArtist(msg.sender, artistId, _name, _index, _holder, _mediaId, _isValid);
+        emit CreateArtist(msg.sender, artistId);
     }
 
     /// @dev Updates the artist of the specified id
@@ -71,7 +71,7 @@ contract RightsArtist is IRightsArtist, MasterDataModule {
         artist.mediaId = _mediaId;
         artist.isValid = _isValid;
 
-        emit UpdateArtist(msg.sender, _artistId, _name, _mediaId, _isValid);
+        emit UpdateArtist(msg.sender, _artistId);
     }
 
     /// @dev Gets artist info

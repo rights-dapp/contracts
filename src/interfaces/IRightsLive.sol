@@ -6,20 +6,12 @@ contract IRightsLive {
 
     event CreateLive(
         address owner,
-        uint256 liveId,
-        uint256 videoType,
-        string videoKey,
-        uint64 liveStartAt,
-        uint64 liveEndAt
+        uint256 liveId
     );
 
     event UpdateLive(
         address owner,
-        uint256 liveId,
-        uint256 videoType,
-        string videoKey,
-        uint64 liveStartAt,
-        uint64 liveEndAt
+        uint256 liveId
     );
 
     event AddLiveId(

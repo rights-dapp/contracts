@@ -6,9 +6,6 @@ contract ITokenManager {
 
     event Issue(
         address owner,
-        string name,
-        string symbol,
-        uint256 initialSupply,
         uint256 tokenId
     );
 
@@ -35,10 +32,7 @@ contract ITokenManager {
 
     event Update(
         address owner,
-        uint256 tokenId,
-        string name,
-        string symbol,
-        uint256 totalSupply
+        uint256 tokenId
     );
 
 

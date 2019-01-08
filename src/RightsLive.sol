@@ -2,6 +2,7 @@ pragma solidity ^0.4.24;
 
 import "./DigitalMoneyManager.sol";
 import "./RightsLiveRoom.sol";
+import "./RightsLiveRoomMoney.sol";
 
 import './interfaces/IRightsLive.sol';
 import "./modules/MasterDataModule.sol";
@@ -27,7 +28,8 @@ contract RightsLive is IRightsLive, MasterDataModule, FeeModule {
     /*** STORAGE ***/
 
     Live[] private lives;
-    RightsLiveRoom private rightsLiveRoom;
+    RightsLiveRoom private liveRoom;
+    RightsLiveRoomMoney private liveRoomMoney;
     DigitalMoneyManager private moneyManager;
 
     // Mapping from live room ID to next live ids
@@ -49,13 +51,15 @@ contract RightsLive is IRightsLive, MasterDataModule, FeeModule {
 
     constructor(
         uint8 _feeRatio,
-        address _rightsLiveRoomAddr,
+        address _liveRoomAddr,
+        address _liveRoomMoneyAddr,
         address _digitalMoneyManagerAddr
     ) public FeeModule(_feeRatio) {
-        require(_rightsLiveRoomAddr != address(0));
+        require(_liveRoomAddr != address(0));
         require(_digitalMoneyManagerAddr != address(0));
 
-        rightsLiveRoom = RightsLiveRoom(_rightsLiveRoomAddr);
+        liveRoom = RightsLiveRoom(_liveRoomAddr);
+        liveRoomMoney = RightsLiveRoomMoney(_liveRoomMoneyAddr);
         moneyManager = DigitalMoneyManager(_digitalMoneyManagerAddr);
     }
 
@@ -75,7 +79,7 @@ contract RightsLive is IRightsLive, MasterDataModule, FeeModule {
         uint64 _liveStartAt,
         uint64 _liveEndAt
     ) external whenNotPaused {
-        require(rightsLiveRoom.ownerOf(_liveRoomId) == msg.sender);
+        require(liveRoom.ownerOf(_liveRoomId) == msg.sender);
         require(_liveStartAt < _liveEndAt);
         require(lastLiveEndAt[_liveRoomId] < _liveStartAt);
 
@@ -89,7 +93,7 @@ contract RightsLive is IRightsLive, MasterDataModule, FeeModule {
         uint256 liveId = lives.push(live).sub(1);
         _mint(msg.sender, liveId);
 
-        emit CreateLive(msg.sender, liveId, _videoType, _videoKey, _liveStartAt, _liveEndAt);
+        emit CreateLive(msg.sender, liveId);
 
         nextLiveIndex[_liveRoomId][liveId] = nextLiveIds[_liveRoomId].push(liveId).sub(1);
         nextLiveOwner[liveId] = msg.sender;
@@ -120,7 +124,7 @@ contract RightsLive is IRightsLive, MasterDataModule, FeeModule {
         live.startAt = _liveStartAt;
         live.endAt = _liveEndAt;
 
-        emit UpdateLive(msg.sender, _liveId, _videoType, _videoKey, _liveStartAt, _liveEndAt);
+        emit UpdateLive(msg.sender, _liveId);
     }
 
     /// @dev Remove live from the live room
@@ -128,7 +132,7 @@ contract RightsLive is IRightsLive, MasterDataModule, FeeModule {
     /// @param _liveId id of the live
     function removeLiveId(uint256 _liveRoomId, uint256 _liveId) public whenNotPaused {
         require(ownerOf(_liveId) == msg.sender);
-        require(rightsLiveRoom.ownerOf(_liveRoomId) == msg.sender);
+        require(liveRoom.ownerOf(_liveRoomId) == msg.sender);
 
         _removeLiveId(_liveRoomId, _liveId);
         emit RemoveLiveId(msg.sender, _liveRoomId, _liveId);
@@ -138,8 +142,8 @@ contract RightsLive is IRightsLive, MasterDataModule, FeeModule {
     /// @param _liveRoomId id of the live room
     function startLive(uint256 _liveRoomId) external whenNotPaused {
         require(
-            rightsLiveRoom.ownerOf(_liveRoomId) == msg.sender
-            || rightsLiveRoom.isHost(_liveRoomId, msg.sender)
+            liveRoom.ownerOf(_liveRoomId) == msg.sender
+            || liveRoom.isHost(_liveRoomId, msg.sender)
         );
         require(nextLiveIds[_liveRoomId].length > 0);
 
@@ -160,35 +164,35 @@ contract RightsLive is IRightsLive, MasterDataModule, FeeModule {
     /// @param _moneyId id of the money
     function payEntranceFee(uint256 _liveRoomId, uint256 _moneyId) external whenNotPaused {
         require(moneyManager.ownerOf(_moneyId) != address(0));
-        require(rightsLiveRoom.isPayableMoney(_liveRoomId, _moneyId));
-        require(rightsLiveRoom.isValid(_liveRoomId));
+        require(liveRoomMoney.isPayableMoney(_liveRoomId, _moneyId));
+        require(liveRoom.isValid(_liveRoomId));
         require(isOnAirLive(_liveRoomId));
 
         uint256 liveId =  nextLiveIds[_liveRoomId][0];
         Live memory live = lives[liveId];
         uint64 liveEndAt = live.endAt;
 
-        uint256 entranceFee = rightsLiveRoom.entranceFeeOf(_liveRoomId);
+        uint256 entranceFee = liveRoom.entranceFeeOf(_liveRoomId);
 
         // check if entrance fee is not payed
         require(approvalExpireAt[_liveRoomId][msg.sender] < liveEndAt);
 
         if (entranceFee > 0) {
             // calculate entranceFee by exchange rate
-            entranceFee = rightsLiveRoom.exchangedAmountOf(_liveRoomId, _moneyId, entranceFee);
+            entranceFee = liveRoomMoney.exchangedAmountOf(_liveRoomId, _moneyId, entranceFee);
 
             // transfer money from user to contract owner 
             moneyManager.forceTransferFrom(msg.sender, owner(), feeAmount(entranceFee), _moneyId);
 
             // transfer money from user to live room owner
-            moneyManager.forceTransferFrom(msg.sender, rightsLiveRoom.ownerOf(_liveRoomId), afterFeeAmount(entranceFee), _moneyId);
+            moneyManager.forceTransferFrom(msg.sender, liveRoom.ownerOf(_liveRoomId), afterFeeAmount(entranceFee), _moneyId);
         }
 
         // set approval expire time to join live
         approvalExpireAt[_liveRoomId][msg.sender] = liveEndAt;
 
         // add total payment amont by user
-        userPaymentAmount[rightsLiveRoom.ownerOf(_liveRoomId)][msg.sender] += entranceFee;
+        userPaymentAmount[liveRoom.ownerOf(_liveRoomId)][msg.sender] += entranceFee;
 
         emit PayEntranceFee(msg.sender, _liveRoomId, _moneyId, entranceFee);
         emit EnterLiveRoom(msg.sender, _liveRoomId, liveEndAt);
@@ -205,8 +209,8 @@ contract RightsLive is IRightsLive, MasterDataModule, FeeModule {
         uint256 _tipType,
         uint256 _amount
     ) external whenNotPaused {
-        require(rightsLiveRoom.isPayableMoney(_liveRoomId, _moneyId));
-        require(rightsLiveRoom.isValid(_liveRoomId));
+        require(liveRoomMoney.isPayableMoney(_liveRoomId, _moneyId));
+        require(liveRoom.isValid(_liveRoomId));
         require(isOnAirLive(_liveRoomId));
 
         // check if entrance fee is payed
@@ -217,10 +221,10 @@ contract RightsLive is IRightsLive, MasterDataModule, FeeModule {
             moneyManager.forceTransferFrom(msg.sender, owner(), feeAmount(_amount), _moneyId);
 
             // transfer money from user to live room owner
-            moneyManager.forceTransferFrom(msg.sender, rightsLiveRoom.ownerOf(_liveRoomId), afterFeeAmount(_amount), _moneyId);
+            moneyManager.forceTransferFrom(msg.sender, liveRoom.ownerOf(_liveRoomId), afterFeeAmount(_amount), _moneyId);
 
             // add total payment amont by user
-            userPaymentAmount[rightsLiveRoom.ownerOf(_liveRoomId)][msg.sender] += _amount;
+            userPaymentAmount[liveRoom.ownerOf(_liveRoomId)][msg.sender] += _amount;
         }
 
         emit TipOnLive(msg.sender, _liveRoomId, _moneyId, _tipType, _amount);
@@ -232,7 +236,7 @@ contract RightsLive is IRightsLive, MasterDataModule, FeeModule {
     function isOnAirLive(
         uint256 _liveRoomId
     ) public view returns (bool) {
-        require(rightsLiveRoom.ownerOf(_liveRoomId) != address(0));
+        require(liveRoom.ownerOf(_liveRoomId) != address(0));
         require(nextLiveIds[_liveRoomId].length > 0);
 
         if (nextLiveIds[_liveRoomId].length > 0) {
@@ -283,7 +287,7 @@ contract RightsLive is IRightsLive, MasterDataModule, FeeModule {
     /// @param _liveRoomId id of the live room
     /// @return live ids.
     function getNextLives(uint256 _liveRoomId) external view returns (uint256[]) {
-        require(rightsLiveRoom.ownerOf(_liveRoomId) != address(0));
+        require(liveRoom.ownerOf(_liveRoomId) != address(0));
 
         return nextLiveIds[_liveRoomId];
     }

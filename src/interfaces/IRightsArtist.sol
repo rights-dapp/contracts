@@ -4,20 +4,12 @@ contract IRightsArtist {
 
     event CreateArtist(
         address owner,
-        uint256 artistId,
-        string name,
-        uint256 index,
-        address holder,
-        string mediaId,
-        bool isValid
+        uint256 artistId
     );
 
     event UpdateArtist(
         address owner,
-        uint256 artistId,
-        string name,
-        string mediaId,
-        bool isValid
+        uint256 artistId
     );
 
     function createArtist(

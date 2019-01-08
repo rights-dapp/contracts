@@ -7,9 +7,7 @@ contract IRightsDigitalAssetObject {
     event Mint(
         address owner,
         uint256 objectId,
-        uint256 specId,
-        string mediaId,
-        string info
+        uint256 specId
     );
 
     event SetMediaId(
